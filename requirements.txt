@@ -1,0 +1,19 @@
+# Dependencies for nginx x402 module
+
+# System dependencies (Ubuntu/Debian)
+# sudo apt-get install build-essential nginx-dev libssl-dev libcurl4-openssl-dev
+
+# System dependencies (CentOS/RHEL)
+# sudo yum install gcc gcc-c++ nginx-devel openssl-devel libcurl-devel
+
+# System dependencies (macOS)
+# brew install nginx openssl curl
+
+# Library versions
+openssl >= 1.1.1
+libcurl >= 7.50.0
+nginx >= 1.18.0
+
+# For development
+gcc >= 7.0
+make >= 4.0

@@ -1,0 +1,271 @@
+# nginx Configuration Example for x402 Payment Module
+# This file demonstrates how to configure the x402 module for different blockchain networks
+
+# Load the x402 payment module
+load_module modules/ngx_http_x402_module.so;
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for" '
+                    '"$http_x402_verified" "$http_x402_network" "$http_x402_amount"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    server {
+        listen 80;
+        server_name example.com;
+
+        # ==============================================================================
+        # Ethereum Mainnet Payment Configuration
+        # ==============================================================================
+        location /ethereum {
+            x402_enabled on;
+            x402_version 2;
+            x402_timeout 30s;
+            x402_algorithm "secp256k1";
+            
+            # Public key for signature verification (example - use your own)
+            x402_public_key "02...";  # Your public key in hex format
+            
+            # Payment requirements block
+            x402_payment {
+                scheme "exact";
+                network "ethereum";
+                max_amount_required "1000000000000000000";  # 1 ETH (18 decimals)
+                pay_to "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";  # Recipient address
+                max_timeout_seconds 300;  # 5 minutes
+                asset "native";  # Native ETH or ERC20 contract address
+                description "Premium Ethereum content access";
+                mime_type "application/json";
+            }
+            
+            # Proxy to backend or serve content
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-X402-Verified $http_x402_verified;
+            proxy_set_header X-X402-Amount $http_x402_amount;
+            proxy_set_header X-X402-Transaction-Id $http_x402_transaction_id;
+        }
+        
+        # ==============================================================================
+        # Solana Payment Configuration
+        # ==============================================================================
+        location /solana {
+            x402_enabled on;
+            x402_version 2;
+            x402_timeout 30s;
+            x402_algorithm "ed25519";  # Solana uses Ed25519 signatures
+            
+            # Public key for signature verification
+            x402_public_key "11111111111111111111111111111111";  # Your public key in base58
+            
+            # Payment requirements block
+            x402_payment {
+                scheme "exact";
+                network "solana";
+                max_amount_required "1000000000";  # 1 SOL (9 decimals)
+                pay_to "11111111111111111111111111111112";  # Recipient address
+                max_timeout_seconds 300;  # 5 minutes
+                asset "native";  # Native SOL or SPL token mint address
+                description "Premium Solana content access";
+                mime_type "application/json";
+                extra "{\"priorityFee\":5000}";  # Optional extra JSON data
+            }
+            
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-X402-Verified $http_x402_verified;
+            proxy_set_header X-X402-Amount $http_x402_amount;
+            proxy_set_header X-X402-Transaction-Id $http_x402_transaction_id;
+        }
+        
+        # ==============================================================================
+        # Base (L2) Network Payment Configuration
+        # ==============================================================================
+        location /base {
+            x402_enabled on;
+            x402_version 2;
+            x402_timeout 30s;
+            x402_algorithm "secp256k1";
+            
+            # Public key for signature verification
+            x402_public_key "02...";  # Your public key in hex format
+            
+            # Payment requirements block
+            x402_payment {
+                scheme "exact";
+                network "base";
+                max_amount_required "1000000000000000000";  # 1 ETH equivalent (18 decimals)
+                pay_to "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";  # Recipient address
+                max_timeout_seconds 300;  # 5 minutes
+                asset "native";  # Native ETH on Base
+                description "Premium Base network content access";
+                mime_type "application/json";
+            }
+            
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-X402-Verified $http_x402_verified;
+            proxy_set_header X-X402-Amount $http_x402_amount;
+            proxy_set_header X-X402-Transaction-Id $http_x402_transaction_id;
+        }
+        
+        # ==============================================================================
+        # Multiple Payment Options Configuration
+        # ==============================================================================
+        location /premium {
+            x402_enabled on;
+            x402_version 2;
+            x402_timeout 30s;
+            
+            # Configure first payment option (Ethereum)
+            x402_payment {
+                scheme "exact";
+                network "ethereum";
+                max_amount_required "500000000000000000";  # 0.5 ETH
+                pay_to "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+                max_timeout_seconds 300;
+                asset "native";
+                description "Ethereum payment option";
+                mime_type "application/json";
+            }
+            
+            # Configure second payment option (Solana)
+            x402_payment {
+                scheme "exact";
+                network "solana";
+                max_amount_required "500000000";  # 0.5 SOL
+                pay_to "11111111111111111111111111111112";
+                max_timeout_seconds 300;
+                asset "native";
+                description "Solana payment option";
+                mime_type "application/json";
+            }
+            
+            # Configure third payment option (Base)
+            x402_payment {
+                scheme "exact";
+                network "base";
+                max_amount_required "100000000000000000";  # 0.1 ETH on Base
+                pay_to "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+                max_timeout_seconds 300;
+                asset "native";
+                description "Base network payment option";
+                mime_type "application/json";
+            }
+            
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        
+        # ==============================================================================
+        # Using External Payment Verification Service
+        # ==============================================================================
+        location /api/external {
+            x402_enabled on;
+            x402_version 2;
+            x402_timeout 30s;
+            x402_payment_endpoint "https://payment-verifier.example.com/api/verify";
+            
+            # External service will handle payment requirements
+            
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        # ==============================================================================
+        # Static Content with Payment Required
+        # ==============================================================================
+        location /premium-content {
+            x402_enabled on;
+            x402_version 2;
+            
+            x402_payment {
+                scheme "exact";
+                network "ethereum";
+                max_amount_required "1000000000000000000";
+                pay_to "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+                max_timeout_seconds 300;
+                asset "native";
+                description "Premium static content";
+                mime_type "text/html";
+            }
+            
+            # Serve static files
+            root /var/www/html;
+            index index.html;
+            
+            # Add verification headers to logs
+            add_header X-X402-Verified $http_x402_verified always;
+            add_header X-X402-Amount $http_x402_amount always;
+        }
+        
+        # ==============================================================================
+        # Conditional Payment Based on Access Level
+        # ==============================================================================
+        location ~ ^/content/(free|premium|vip)$ {
+            x402_enabled on;
+            x402_version 2;
+            
+            # Set payment amount based on access level
+            # This would typically be handled by Lua or a configuration management system
+            
+            x402_payment {
+                scheme "exact";
+                network "ethereum";
+                max_amount_required "1000000000000000000";  # Default: 1 ETH
+                pay_to "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+                max_timeout_seconds 300;
+                asset "native";
+                description "Payment required for content access";
+                mime_type "application/json";
+            }
+            
+            proxy_pass http://127.0.0.1:8080;
+        }
+        
+        # ==============================================================================
+        # Health Check Endpoint (No Payment Required)
+        # ==============================================================================
+        location /health {
+            access_log off;
+            return 200 "OK\n";
+            add_header Content-Type text/plain;
+        }
+        
+        # ==============================================================================
+        # Metrics Endpoint
+        # ==============================================================================
+        location /metrics {
+            x402_enabled off;  # Explicitly disable for metrics
+            proxy_pass http://127.0.0.1:9090;
+        }
+    }
+}
+
